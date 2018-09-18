@@ -39,6 +39,8 @@ sub new {
             {
             "data:s"                => { name => 'data' },
             "lookup:s@"             => { name => 'lookup' },
+            "perf-keys:s"           => { name => 'perf_keys' },
+            "perf-values:s"         => { name => 'perf_values' },
             "hostname:s"            => { name => 'hostname' },
             "http-peer-addr:s"      => { name => 'http_peer_addr' },
             "vhost:s"               => { name => 'vhost' },
@@ -225,6 +227,22 @@ sub lookup {
                                           warning => $self->{option_results}->{threshold_value} eq 'values' ? $self->{perfdata}->get_perfdata_for_output(label => 'warning-numeric') : undef,
                                           critical => $self->{option_results}->{threshold_value} eq 'values' ? $self->{perfdata}->get_perfdata_for_output(label => 'critical-numeric') : undef);
         } else {
+            if (defined($self->{option_results}->{perf_keys}) && $self->{option_results}->{perf_keys} ne '' &&
+                defined($self->{option_results}->{perf_values}) && $self->{option_results}->{perf_values} ne '') {
+                my ($key, $val);
+                eval {
+                    my $jpath = JSON::Path->new($self->{option_results}->{perf_keys});
+                    $key = $jpath->value($value);
+                    $jpath = JSON::Path->new($self->{option_results}->{perf_values});
+                    $val = $jpath->value($value);
+                };
+                
+                if (!$@) {
+                    $self->{output}->perfdata_add(label => $key,
+                                                  value => $val);
+                    next;
+                }
+            }
             if (defined($self->{option_results}->{critical_string}) && $self->{option_results}->{critical_string} ne '' &&
                 $value =~ /$self->{option_results}->{critical_string}/) {
                 push @{$self->{values_string_critical}}, $value;
@@ -296,6 +314,18 @@ Set file with JSON request
 =item B<--lookup>
 
 What to lookup in JSON response (JSON XPath string) (can be multiple)
+See: http://goessner.net/articles/JsonPath/
+
+=item B<--perf-keys>
+
+What field to use for perf keys for each lookup object (JSON XPath string)
+E.g. --perf-keys='$..name'
+See: http://goessner.net/articles/JsonPath/
+
+=item B<--perf-values>
+
+What field to use for perf values for each lookup object (JSON XPath string)
+E.g. --perf-values='$..value'
 See: http://goessner.net/articles/JsonPath/
 
 =back
